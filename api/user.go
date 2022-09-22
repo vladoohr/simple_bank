@@ -1,6 +1,8 @@
 package api
 
 import (
+	"database/sql"
+	"errors"
 	"net/http"
 	"time"
 
@@ -25,6 +27,29 @@ type userResponse struct {
 	FullName         string    `json:"full_name"`
 	PasswordChangeAt time.Time `json:"password_change_at"`
 	CreatedAt        time.Time `json:"created_at"`
+}
+
+// loginUserRequest represents the  login user payload
+type loginUserRequest struct {
+	Username string `json:"username" binding:"required,alphanum"`
+	Password string `json:"password" binding:"required,min=6"`
+}
+
+// loginUserResponse holds access token and user information
+type loginUserResponse struct {
+	AccessToken          string       `json:"access_token"`
+	AccessTokenExpiredAt time.Time    `json:"access_token_expired_at"`
+	User                 userResponse `json:"user"`
+}
+
+func newUserResponse(user db.User) userResponse {
+	return userResponse{
+		Username:         user.Username,
+		FullName:         user.FullName,
+		Email:            user.Email,
+		PasswordChangeAt: user.PasswordChangeAt,
+		CreatedAt:        user.CreatedAt,
+	}
 }
 
 // CreateUser validates the request and creates new user
@@ -63,13 +88,49 @@ func (server *Server) CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	response := userResponse{
-		Username:         user.Username,
-		FullName:         user.FullName,
-		Email:            user.Email,
-		PasswordChangeAt: user.PasswordChangeAt,
-		CreatedAt:        user.CreatedAt,
-	}
+	response := newUserResponse(user)
 
 	ctx.JSON(http.StatusCreated, response)
+}
+
+// LoginUser validates the request, checks if user exists,
+// checks the password and generates the JWT or PASETO access token
+// Returns the generated access token and user information
+func (server *Server) LoginUser(ctx *gin.Context) {
+	var req loginUserRequest
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	user, err := server.store.GetUser(ctx, req.Username)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	err = util.CheckPassword(req.Password, user.HashedPassword)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	tokenString, payload, err := server.tokenMaker.CreateToken(req.Username, server.config.AccessTokenDuration)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	response := loginUserResponse{
+		AccessToken:          tokenString,
+		AccessTokenExpiredAt: payload.ExpireAt,
+		User:                 newUserResponse(user),
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }

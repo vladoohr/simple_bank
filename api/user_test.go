@@ -69,7 +69,7 @@ func TestCreateUser(t *testing.T) {
 	store.EXPECT().CreateUser(gomock.Any(), eqUser(createUserParams, password)).Return(user, nil).Times(1)
 
 	// start test server and send request
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	recorder := httptest.NewRecorder()
 
 	body := gin.H{
