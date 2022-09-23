@@ -2,17 +2,17 @@ package api
 
 import (
 	"database/sql"
-	"log"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
 	db "github.com/vladoohr/simple_bank/db/sqlc"
+	"github.com/vladoohr/simple_bank/token"
 )
 
 // createAccountRequest represents CreateAccount  user payload
 type createAccountRequest struct {
-	Owner    string `json:"owner" binding:"required"`
 	Currency string `json:"currency" binding:"required,oneof=USD EUR CAN"`
 }
 
@@ -25,8 +25,10 @@ func (server *Server) CreateAccount(ctx *gin.Context) {
 		return
 	}
 
+	payload := ctx.MustGet(authorizationPayloadKey).(*token.Payload)
+
 	createAccountParams := db.CreateAccountParams{
-		Owner:    req.Owner,
+		Owner:    payload.Username,
 		Balance:  0,
 		Currency: req.Currency,
 	}
@@ -72,6 +74,13 @@ func (server *Server) GetAccount(ctx *gin.Context) {
 		return
 	}
 
+	payload := ctx.MustGet(authorizationPayloadKey).(*token.Payload)
+	if account.Owner != payload.Username {
+		err := errors.New("accounts do not belong to the autheticated user")
+		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
+		return
+	}
+
 	ctx.JSON(http.StatusOK, account)
 }
 
@@ -89,9 +98,10 @@ func (server *Server) ListAccount(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
-	log.Println(req)
 
+	payload := ctx.MustGet(authorizationPayloadKey).(*token.Payload)
 	listAccountParams := db.ListAccountsParams{
+		Owner:  payload.Username,
 		Limit:  req.PageSize,
 		Offset: (req.PageID - 1) * req.PageSize,
 	}
