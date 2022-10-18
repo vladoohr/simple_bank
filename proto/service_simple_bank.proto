@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/vladoohr/simple_bank/pb";
+
+import "google/api/annotations.proto";
+import "rpc_create_user.proto";
+import "rpc_login_user.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+        title: "Simple Bank API";
+        version: "1.0";
+        contact: {
+            name: "Vladimir's project";
+            url: "https://github.com/vladoohr/simple_bank";
+            email: "none@example.com";
+      };
+    
+    };
+};
+
+service SimpleBank {
+    rpc CreateUser (CreateUserRequest) returns (CreateUserResponse) {
+        option (google.api.http) = {
+            post: "/api/v1/create_user"
+            body: "*"
+        };
+    };
+    rpc LoginUser (LoginUserRequest) returns (LoginUserResponse) {
+        option (google.api.http) = {
+            post: "/api/v1/login_user"
+            body: "*"
+        };
+
+    };
+}
