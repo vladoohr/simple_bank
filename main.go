@@ -7,6 +7,9 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rakyll/statik/fs"
 	"github.com/vladoohr/simple_bank/api"
@@ -32,11 +35,29 @@ func main() {
 		log.Fatal("cannot connect to db: ", err)
 	}
 
+	// run migration
+	runDBMigration(config.MigrationURL, config.DBSource)
+
 	store := db.NewStore(conn)
 
 	go runGrpcServer(config, store)
 
 	runGatewayServer(config, store)
+}
+
+func runDBMigration(url, dbSource string) {
+	log.Println("Run DB migration")
+
+	m, err := migrate.New(url, dbSource)
+	if err != nil {
+		log.Fatal("failed create new migrate instance:", err)
+	}
+
+	if err := m.Up(); err != nil {
+		log.Fatal("failed run DB migrate up:", err)
+	}
+
+	log.Println("Migrations run successfully")
 }
 
 func runGatewayServer(config util.Config, store db.Store) {
