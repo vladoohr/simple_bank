@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/vladoohr/simple_bank/pb";
+
+import "user.proto";
+import "google/protobuf/wrappers.proto";
+
+message UpdateUserRequest {
+    string username = 1;
+    google.protobuf.StringValue password = 2;
+    google.protobuf.StringValue fullname = 3;
+    google.protobuf.StringValue email = 4;
+}
+
+message UpdateUserResponse {
+    User user = 1;
+}

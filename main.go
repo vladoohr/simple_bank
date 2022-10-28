@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -53,7 +54,7 @@ func runDBMigration(url, dbSource string) {
 		log.Fatal("failed create new migrate instance:", err)
 	}
 
-	if err := m.Up(); err != nil {
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		log.Fatal("failed run DB migrate up:", err)
 	}
 
