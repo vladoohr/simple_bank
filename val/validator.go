@@ -8,7 +8,7 @@ import (
 
 var (
 	validUsername = regexp.MustCompile(`^[a-z0-9_]+$`).MatchString
-	validFullname = regexp.MustCompile(`^[a-zA-Z\s]+$`).MatchString
+	validFullname = regexp.MustCompile(`^[A-Za-z\s]+$`).MatchString
 )
 
 func validateStringLen(value string, minLength int, maxLength int) error {
